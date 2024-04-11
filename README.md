@@ -1,2 +1,2 @@
 # kafka-connect-paimon
-kafka connect for paimon
+kafka connect for paimon. developing.
