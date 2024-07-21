@@ -37,7 +37,7 @@ public class PaimonSinkTask extends SinkTask {
     public void start(Map<String, String> config) {
         this.config = new PaimonSinkConfig(config);
         this.catalog = CatalogUtils.createCataLog(this.config.catalogProps());
-        this.paimonTableWriter = new PaimonTableWriter(this.catalog, this.config);
+        this.paimonTableWriter = PaimonTableWriter.of(this.catalog, this.config);
     }
 
     @Override

@@ -22,8 +22,14 @@ import io.connect.paimon.sink.naming.DebeziumTableNamingStrategy;
 import io.connect.paimon.sink.naming.TableNamingStrategy;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.paimon.shade.guava30.com.google.common.annotations.VisibleForTesting;
+import org.apache.paimon.shade.guava30.com.google.common.collect.ImmutableList;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+
+import static java.util.stream.Collectors.toList;
 
 
 /**
@@ -59,11 +65,17 @@ public class PaimonSinkConfig extends AbstractConfig {
     public static final String TABLE_NAMING_STRATEGY_FIELD_DEFAULT = DebeziumTableNamingStrategy.class.getName();
     public static final String TABLE_NAMING_STRATEGY_FIELD_DOC = "Name of the strategy class that implements the TablingNamingStrategy interface";
 
+    // primary keys
+    private static final String TABLE_DEFAULT_ID_COLUMNS = "table.default-id-columns";
+    // partition fields
+    private static final String TABLE_DEFAULT_PARTITION_BY = "table.default-partition-by";
+
     //parameter
     public static final ConfigDef CONFIG_DEF = newConfigDef();
     private final Map<String, String> originalProps;
     private final Map<String, String> catalogProps;
     private final Map<String, String> hadoopProps;
+
     // table naming strategy
     private final TableNamingStrategy tableNamingStrategy;
     // auto create table
@@ -124,9 +136,29 @@ public class PaimonSinkConfig extends AbstractConfig {
                 TABLE_NAME_FORMAT_FIELD_DEFAULT,
                 ConfigDef.Importance.MEDIUM,
                 TABLE_NAME_FORMAT_FIELD_DOC
-        );
+        ).define(
+                TABLE_DEFAULT_ID_COLUMNS,
+                ConfigDef.Type.STRING,
+                null,
+                ConfigDef.Importance.MEDIUM,
+                "Default ID columns for tables, comma-separated"
+        ).define(
+                TABLE_DEFAULT_PARTITION_BY,
+                ConfigDef.Type.STRING,
+                null,
+                ConfigDef.Importance.MEDIUM,
+                "Default partition spec to use when creating table, comma-separated");
         // Config options
         return configDef;
+    }
+
+
+    public List<String> tableDefaultPartitionBy() {
+        return stringToList(getString(TABLE_DEFAULT_PARTITION_BY), ",");
+    }
+
+    public List<String> tableDefaultIdColumns() {
+        return stringToList(getString(TABLE_DEFAULT_ID_COLUMNS), ",");
     }
 
     public Map<String, String> originalProps() {
@@ -155,5 +187,14 @@ public class PaimonSinkConfig extends AbstractConfig {
 
     public boolean isAutoEvolve() {
         return autoEvolve;
+    }
+
+    @VisibleForTesting
+    static List<String> stringToList(String value, String regex) {
+        if (value == null || value.isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        return Arrays.stream(value.split(regex)).map(String::trim).collect(toList());
     }
 }

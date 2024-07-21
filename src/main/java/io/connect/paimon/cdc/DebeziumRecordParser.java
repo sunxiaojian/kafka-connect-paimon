@@ -18,6 +18,7 @@
 package io.connect.paimon.cdc;
 
 import io.connect.paimon.data.CdcRecord;
+import io.connect.paimon.sink.PaimonSinkConfig;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -55,7 +56,7 @@ public class DebeziumRecordParser {
      * @param record
      * @return
      */
-    public static Schema buildSchema(SinkRecord record){
+    public static Schema buildSchema(PaimonSinkConfig config, SinkRecord record){
         org.apache.kafka.connect.data.Schema schema =  record.valueSchema();
         if (schema.type() != org.apache.kafka.connect.data.Schema.Type.STRUCT){
             throw new ConnectException("Record value schema must be struct!");
@@ -65,8 +66,19 @@ public class DebeziumRecordParser {
         for (Field field : fields){
             builder.column(field.name(), DebeziumSchemaUtils.toDataType(field), field.schema().doc());
         }
+        builder.partitionKeys(config.tableDefaultPartitionBy());
+        // auto discovery from record key
+        List<String> primaryKeys = discoveryPrimaryKey(record);
+        builder.primaryKey(primaryKeys.isEmpty() ? config.tableDefaultIdColumns() : primaryKeys);
         // build schema
         return builder.build();
+    }
+
+    private static List<String> discoveryPrimaryKey(SinkRecord record) {
+        if (record.keySchema() == null){
+            return Collections.emptyList();
+        }
+        return record.keySchema().fields().stream().map(field -> field.name()).collect(Collectors.toList());
     }
 
     public static Optional<GenericRow> toGenericRow(CdcRecord cdcRecord, List<DataField> dataFields) {
