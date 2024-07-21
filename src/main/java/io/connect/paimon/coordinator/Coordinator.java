@@ -16,21 +16,29 @@
  * limitations under the License.
  */
 
-package io.connect.paimon.sink.naming;
+package io.connect.paimon.coordinator;
 
-import org.apache.paimon.catalog.Identifier;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import io.connect.paimon.sink.PaimonSinkConfig;
-import org.apache.kafka.connect.sink.SinkRecord;
+/** A coordinator. */
+public class Coordinator {
+    private static final List<CoordinatorTask> tasks = new ArrayList<>();
+    private static final ScheduledExecutorService executorService =
+            Executors.newScheduledThreadPool(1);
 
-/** Table naming strategy. */
-public interface TableNamingStrategy {
-    /**
-     * Resolves the logical table name from the sink record.
-     *
-     * @param config sink connector configuration, should not be {@code null}
-     * @param record Kafka sink record, should not be {@code null}
-     * @return the resolved logical table name; if {@code null} the record should not be processed
-     */
-    Identifier resolveTableName(PaimonSinkConfig config, SinkRecord record);
+    public static void registry(CoordinatorTask task) {
+        tasks.add(task);
+    }
+
+    // Start schedule task.
+    public static void start() {
+        for (CoordinatorTask task : tasks) {
+            executorService.scheduleAtFixedRate(
+                    task, 1000, task.getIntervalMs(), TimeUnit.MILLISECONDS);
+        }
+    }
 }

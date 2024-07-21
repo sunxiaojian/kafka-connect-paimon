@@ -1,0 +1,22 @@
+{
+  "name": "paimo-sink-test-07",
+  "config": {
+    "tasks.max": 1,
+    "connector.class": "io.connect.paimon.sink.PaimonSinkConnector",
+    "topics": "debezium-mysql-sourc-002.test_database.products_cdc",
+    "database.name.format": "${source.db}",
+    "table.name.format":"${source.table}",
+    "auto.create": true,
+    "auto.evolve": true,
+    "table.config.file.format":"parquet",
+    "table.default-primary-keys": "id",
+    "table.config.bucket": 2,
+    "table.config.bucket-key": "id",
+    "catalog.config.warehouse":"/tmp/paimon",
+    "enabled.orphan.files.clean": true,
+    "orphan.files.clean.database": "default",
+    "table.config.snapshot.num-retained.min": 10,
+    "table.config.snapshot.num-retained.max": 100,
+    "table.config.snapshot.time-retained": "1h"
+  }
+}

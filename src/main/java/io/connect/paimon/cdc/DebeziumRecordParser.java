@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,26 +18,34 @@
 
 package io.connect.paimon.cdc;
 
-import io.connect.paimon.data.CdcRecord;
-import org.apache.kafka.connect.data.Field;
-import org.apache.kafka.connect.data.Struct;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.paimon.data.GenericRow;
 import org.apache.paimon.schema.Schema;
-import org.apache.paimon.shade.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataType;
 import org.apache.paimon.types.RowKind;
 import org.apache.paimon.utils.TypeUtils;
+
+import org.apache.paimon.shade.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+
+import io.connect.paimon.data.CdcRecord;
+import io.connect.paimon.sink.PaimonSinkConfig;
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.paimon.utils.JsonSerdeUtil.writeValueAsString;
 
+/** Record parser for debezium. */
 public class DebeziumRecordParser {
 
     private static final String FIELD_BEFORE = "before";
@@ -49,27 +58,61 @@ public class DebeziumRecordParser {
 
     private static final Logger LOG = LoggerFactory.getLogger(DebeziumRecordParser.class);
 
-
     /**
-     * Build schema for create table
+     * Build schema for create table.
+     *
      * @param record
      * @return
      */
-    public static Schema buildSchema(SinkRecord record){
-        org.apache.kafka.connect.data.Schema schema =  record.valueSchema();
-        if (schema.type() != org.apache.kafka.connect.data.Schema.Type.STRUCT){
-            throw new ConnectException("Record value schema must be struct!");
-        }
+    public static Schema buildSchema(PaimonSinkConfig config, SinkRecord record) {
+        org.apache.kafka.connect.data.Schema schema = extractSchema(record);
         Schema.Builder builder = Schema.newBuilder();
-        List<Field> fields = record.valueSchema().fields();
-        for (Field field : fields){
-            builder.column(field.name(), DebeziumSchemaUtils.toDataType(field), field.schema().doc());
+        // set config
+        builder.options(config.tableProps());
+        // set columns
+        List<Field> fields = schema.fields();
+        for (Field field : fields) {
+            String fieldName = caseSensitiveConversion(field.name(), config.isCaseSensitive());
+            builder.column(fieldName, DebeziumSchemaUtils.toDataType(field), field.schema().doc());
         }
+        // Set partition keys
+        builder.partitionKeys(config.partitionKeys());
+        // Set primary keys
+        builder.primaryKey(discoveryPrimaryKey(config, record));
         // build schema
         return builder.build();
     }
 
-    public static Optional<GenericRow> toGenericRow(CdcRecord cdcRecord, List<DataField> dataFields) {
+    private static org.apache.kafka.connect.data.Schema extractSchema(SinkRecord record) {
+        org.apache.kafka.connect.data.Schema schema = record.valueSchema();
+        if (schema.type() != org.apache.kafka.connect.data.Schema.Type.STRUCT) {
+            throw new ConnectException("Record value schema must be struct!");
+        }
+        org.apache.kafka.connect.data.Schema dataSchema = schema.field(FIELD_AFTER).schema();
+        if (dataSchema == null) {
+            dataSchema = schema.field(FIELD_AFTER).schema();
+        }
+        return dataSchema;
+    }
+
+    public static String caseSensitiveConversion(String str, boolean caseSensitive) {
+        return caseSensitive ? str : str.toLowerCase();
+    }
+
+    private static List<String> discoveryPrimaryKey(PaimonSinkConfig config, SinkRecord record) {
+        if (!config.primaryKeys().isEmpty()) {
+            return config.primaryKeys();
+        }
+        if (record.keySchema() == null) {
+            return Collections.emptyList();
+        }
+        return record.keySchema().fields().stream()
+                .map(field -> field.name())
+                .collect(Collectors.toList());
+    }
+
+    public static Optional<GenericRow> toGenericRow(
+            CdcRecord cdcRecord, List<DataField> dataFields) {
         Struct struct = cdcRecord.value();
         GenericRow genericRow = new GenericRow(cdcRecord.kind(), dataFields.size());
         List<String> fieldNames =
@@ -84,7 +127,6 @@ public class DebeziumRecordParser {
                 LOG.info("Field " + key + " not found. Waiting for schema update.");
                 return Optional.empty();
             }
-
             if (value == null) {
                 continue;
             }
@@ -108,9 +150,8 @@ public class DebeziumRecordParser {
         return Optional.of(genericRow);
     }
 
-    private static String getValueAsString(Object value){
-        if (Objects.nonNull(value)
-                && !TypeUtils.isBasicType(value)) {
+    private static String getValueAsString(Object value) {
+        if (Objects.nonNull(value) && !TypeUtils.isBasicType(value)) {
             try {
                 return writeValueAsString(value);
             } catch (JsonProcessingException e) {
@@ -125,7 +166,7 @@ public class DebeziumRecordParser {
         List<CdcRecord> cdcRecords = new ArrayList<>();
         Struct value = (Struct) record.value();
         String op = (String) value.get(FIELD_TYPE);
-        switch (op){
+        switch (op) {
             case OP_DELETE:
                 processRecords(getBefore(value), RowKind.DELETE, cdcRecords);
                 break;
@@ -144,8 +185,9 @@ public class DebeziumRecordParser {
     }
 
     private static Struct getData(Struct value) {
-       return (Struct) value.get(FIELD_AFTER);
+        return (Struct) value.get(FIELD_AFTER);
     }
+
     private static Struct getBefore(Struct value) {
         return (Struct) value.get(FIELD_BEFORE);
     }

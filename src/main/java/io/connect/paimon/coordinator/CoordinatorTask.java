@@ -16,21 +16,34 @@
  * limitations under the License.
  */
 
-package io.connect.paimon.sink.naming;
+package io.connect.paimon.coordinator;
 
-import org.apache.paimon.catalog.Identifier;
+/** Task for Coordinator. */
+public class CoordinatorTask implements Runnable {
+    private final Handler handler;
+    private final int intervalMs;
 
-import io.connect.paimon.sink.PaimonSinkConfig;
-import org.apache.kafka.connect.sink.SinkRecord;
+    public CoordinatorTask(Handler handler, int intervalMs) {
+        this.handler = handler;
+        this.intervalMs = intervalMs;
+    }
 
-/** Table naming strategy. */
-public interface TableNamingStrategy {
     /**
-     * Resolves the logical table name from the sink record.
+     * When an object implementing interface <code>Runnable</code> is used to create a thread,
+     * starting the thread causes the object's <code>run</code> method to be called in that
+     * separately executing thread.
      *
-     * @param config sink connector configuration, should not be {@code null}
-     * @param record Kafka sink record, should not be {@code null}
-     * @return the resolved logical table name; if {@code null} the record should not be processed
+     * <p>The general contract of the method <code>run</code> is that it may take any action
+     * whatsoever.
+     *
+     * @see Thread#run()
      */
-    Identifier resolveTableName(PaimonSinkConfig config, SinkRecord record);
+    @Override
+    public void run() {
+        handler.handle();
+    }
+
+    public int getIntervalMs() {
+        return intervalMs;
+    }
 }
