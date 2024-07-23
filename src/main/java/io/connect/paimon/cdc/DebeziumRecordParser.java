@@ -66,10 +66,10 @@ public class DebeziumRecordParser {
         for (Field field : fields){
             builder.column(field.name(), DebeziumSchemaUtils.toDataType(field), field.schema().doc());
         }
-        builder.partitionKeys(config.tableDefaultPartitionBy());
+        builder.partitionKeys(config.partitionKeys());
         // auto discovery from record key
         List<String> primaryKeys = discoveryPrimaryKey(record);
-        builder.primaryKey(primaryKeys.isEmpty() ? config.tableDefaultIdColumns() : primaryKeys);
+        builder.primaryKey(primaryKeys.isEmpty() ? config.primaryKeys() : primaryKeys);
         // build schema
         return builder.build();
     }

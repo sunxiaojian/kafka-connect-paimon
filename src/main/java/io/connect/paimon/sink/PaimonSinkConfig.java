@@ -66,9 +66,9 @@ public class PaimonSinkConfig extends AbstractConfig {
     public static final String TABLE_NAMING_STRATEGY_FIELD_DOC = "Name of the strategy class that implements the TablingNamingStrategy interface";
 
     // primary keys
-    private static final String TABLE_DEFAULT_ID_COLUMNS = "table.default-id-columns";
-    // partition fields
-    private static final String TABLE_DEFAULT_PARTITION_BY = "table.default-partition-by";
+    private static final String PRIMARY_KEYS = "table.default-primary-keys";
+    // partition keys
+    private static final String PARTITION_KEYS = "table.default-partition-keys";
 
     //parameter
     public static final ConfigDef CONFIG_DEF = newConfigDef();
@@ -137,13 +137,13 @@ public class PaimonSinkConfig extends AbstractConfig {
                 ConfigDef.Importance.MEDIUM,
                 TABLE_NAME_FORMAT_FIELD_DOC
         ).define(
-                TABLE_DEFAULT_ID_COLUMNS,
+                PRIMARY_KEYS,
                 ConfigDef.Type.STRING,
                 null,
                 ConfigDef.Importance.MEDIUM,
                 "Default ID columns for tables, comma-separated"
         ).define(
-                TABLE_DEFAULT_PARTITION_BY,
+                PARTITION_KEYS,
                 ConfigDef.Type.STRING,
                 null,
                 ConfigDef.Importance.MEDIUM,
@@ -153,12 +153,12 @@ public class PaimonSinkConfig extends AbstractConfig {
     }
 
 
-    public List<String> tableDefaultPartitionBy() {
-        return stringToList(getString(TABLE_DEFAULT_PARTITION_BY), ",");
+    public List<String> partitionKeys() {
+        return stringToList(getString(PARTITION_KEYS), ",");
     }
 
-    public List<String> tableDefaultIdColumns() {
-        return stringToList(getString(TABLE_DEFAULT_ID_COLUMNS), ",");
+    public List<String> primaryKeys() {
+        return stringToList(getString(PRIMARY_KEYS), ",");
     }
 
     public Map<String, String> originalProps() {
