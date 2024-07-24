@@ -38,8 +38,9 @@ import static java.util.stream.Collectors.toList;
 public class PaimonSinkConfig extends AbstractConfig {
 
     // config options
-    private static final String CATALOG_PROP_PREFIX = "paimon.catalog.";
-    private static final String HADOOP_PROP_PREFIX = "paimon.hadoop.";
+    private static final String TABLE_PROP_PREFIX = "table.config.";
+    private static final String CATALOG_PROP_PREFIX = "catalog.config.";
+    private static final String HADOOP_PROP_PREFIX = "hadoop.config.";
 
     // Auto  create table
     public static final String AUTO_CREATE = "auto.create";
@@ -65,14 +66,25 @@ public class PaimonSinkConfig extends AbstractConfig {
     public static final String TABLE_NAMING_STRATEGY_FIELD_DEFAULT = DebeziumTableNamingStrategy.class.getName();
     public static final String TABLE_NAMING_STRATEGY_FIELD_DOC = "Name of the strategy class that implements the TablingNamingStrategy interface";
 
+
+    // Table case sensitive
+    public static final String TABLE_CASE_SENSITIVE = "case.sensitive";
+    private static final boolean TABLE_CASE_SENSITIVE_DEFAULT = true;
+    private static final String TABLE_CASE_SENSITIVE_DOC = "Table case sensitive config.";
+
+
+
+
     // primary keys
     private static final String PRIMARY_KEYS = "table.default-primary-keys";
     // partition keys
     private static final String PARTITION_KEYS = "table.default-partition-keys";
 
+
+
     //parameter
     public static final ConfigDef CONFIG_DEF = newConfigDef();
-    private final Map<String, String> originalProps;
+    private final Map<String, String> tableProps;
     private final Map<String, String> catalogProps;
     private final Map<String, String> hadoopProps;
 
@@ -84,6 +96,8 @@ public class PaimonSinkConfig extends AbstractConfig {
     private final boolean autoEvolve;
     // table name format
     private final String tableNameFormat;
+    // case sensitive
+    private final boolean caseSensitive;
 
     public static String version() {
         String version = PaimonSinkConfig.class.getPackage().getImplementationVersion();
@@ -95,9 +109,10 @@ public class PaimonSinkConfig extends AbstractConfig {
 
     public PaimonSinkConfig(Map<String, String> originalProps) {
         super(CONFIG_DEF, originalProps);
-        this.originalProps = originalProps;
         // Table naming strategy
         this.tableNamingStrategy = getConfiguredInstance(TABLE_NAMING_STRATEGY_FIELD, TableNamingStrategy.class);
+        // table props
+        this.tableProps = PropertyUtil.propertiesWithPrefix(originalProps, TABLE_PROP_PREFIX);
         // Catalog props
         this.catalogProps = PropertyUtil.propertiesWithPrefix(originalProps, CATALOG_PROP_PREFIX);
         this.hadoopProps = PropertyUtil.propertiesWithPrefix(originalProps, HADOOP_PROP_PREFIX);
@@ -106,6 +121,7 @@ public class PaimonSinkConfig extends AbstractConfig {
         // schema evolution
         this.autoEvolve = getBoolean(AUTO_EVOLVE);
         this.tableNameFormat = this.getString(TABLE_NAME_FORMAT_FIELD);
+        this.caseSensitive = this.getBoolean(TABLE_CASE_SENSITIVE);
     }
 
     private static ConfigDef newConfigDef() {
@@ -147,11 +163,16 @@ public class PaimonSinkConfig extends AbstractConfig {
                 ConfigDef.Type.STRING,
                 null,
                 ConfigDef.Importance.MEDIUM,
-                "Default partition spec to use when creating table, comma-separated");
+                "Default partition spec to use when creating table, comma-separated"
+        ).define(
+                TABLE_CASE_SENSITIVE,
+                ConfigDef.Type.STRING,
+                TABLE_CASE_SENSITIVE_DEFAULT,
+                ConfigDef.Importance.MEDIUM,
+                TABLE_CASE_SENSITIVE_DOC);
         // Config options
         return configDef;
     }
-
 
     public List<String> partitionKeys() {
         return stringToList(getString(PARTITION_KEYS), ",");
@@ -161,8 +182,8 @@ public class PaimonSinkConfig extends AbstractConfig {
         return stringToList(getString(PRIMARY_KEYS), ",");
     }
 
-    public Map<String, String> originalProps() {
-        return originalProps;
+    public Map<String, String> getTableProps() {
+        return tableProps;
     }
 
     public Map<String, String> catalogProps() {
@@ -187,6 +208,10 @@ public class PaimonSinkConfig extends AbstractConfig {
 
     public boolean isAutoEvolve() {
         return autoEvolve;
+    }
+
+    public boolean isCaseSensitive() {
+        return caseSensitive;
     }
 
     @VisibleForTesting

@@ -108,7 +108,7 @@ public class PaimonTableWriter implements AutoCloseable {
             table = cacheTables.get(tableId);
         }
 
-        if (isAutoCreate){
+        if (isAutoCreate && config.isAutoEvolve()){
             // discovery schema evolution
             FileStoreTable fileStoreTable = table;
             SchemaManager schemaManager =

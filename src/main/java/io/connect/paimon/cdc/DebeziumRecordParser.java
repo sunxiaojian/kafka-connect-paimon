@@ -62,16 +62,25 @@ public class DebeziumRecordParser {
             throw new ConnectException("Record value schema must be struct!");
         }
         Schema.Builder builder = Schema.newBuilder();
+        // set config
+        builder.options(config.getTableProps());
+        // set columns
         List<Field> fields = record.valueSchema().fields();
         for (Field field : fields){
-            builder.column(field.name(), DebeziumSchemaUtils.toDataType(field), field.schema().doc());
+            String fieldName = caseSensitiveConversion(field.name(), config.isCaseSensitive());
+            builder.column(fieldName, DebeziumSchemaUtils.toDataType(field), field.schema().doc());
         }
+        // set partition keys
         builder.partitionKeys(config.partitionKeys());
-        // auto discovery from record key
+        // set primary keys
         List<String> primaryKeys = discoveryPrimaryKey(record);
         builder.primaryKey(primaryKeys.isEmpty() ? config.primaryKeys() : primaryKeys);
         // build schema
         return builder.build();
+    }
+
+    public static String caseSensitiveConversion(String str, boolean caseSensitive) {
+        return caseSensitive ? str : str.toLowerCase();
     }
 
     private static List<String> discoveryPrimaryKey(SinkRecord record) {
