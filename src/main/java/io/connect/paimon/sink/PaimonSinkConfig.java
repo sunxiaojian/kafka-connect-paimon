@@ -67,19 +67,20 @@ public class PaimonSinkConfig extends AbstractConfig {
     public static final String TABLE_NAMING_STRATEGY_FIELD_DOC = "Name of the strategy class that implements the TablingNamingStrategy interface";
 
 
-    // Table case sensitive
+    // table case sensitive
     public static final String TABLE_CASE_SENSITIVE = "case.sensitive";
     private static final boolean TABLE_CASE_SENSITIVE_DEFAULT = true;
     private static final String TABLE_CASE_SENSITIVE_DOC = "Table case sensitive config.";
 
-
+    // commit interval ms
+    private static final String COMMIT_INTERVAL_MS_PROP = "control.commit.interval-ms";
+    private static final int COMMIT_INTERVAL_MS_DEFAULT = 300_000;
 
 
     // primary keys
     private static final String PRIMARY_KEYS = "table.default-primary-keys";
     // partition keys
     private static final String PARTITION_KEYS = "table.default-partition-keys";
-
 
 
     //parameter
@@ -98,6 +99,9 @@ public class PaimonSinkConfig extends AbstractConfig {
     private final String tableNameFormat;
     // case sensitive
     private final boolean caseSensitive;
+
+    //  commit interval ms
+    private final int commitIntervalMs;
 
     public static String version() {
         String version = PaimonSinkConfig.class.getPackage().getImplementationVersion();
@@ -122,6 +126,7 @@ public class PaimonSinkConfig extends AbstractConfig {
         this.autoEvolve = getBoolean(AUTO_EVOLVE);
         this.tableNameFormat = this.getString(TABLE_NAME_FORMAT_FIELD);
         this.caseSensitive = this.getBoolean(TABLE_CASE_SENSITIVE);
+        this.commitIntervalMs = this.getInt(COMMIT_INTERVAL_MS_PROP);
     }
 
     private static ConfigDef newConfigDef() {
@@ -169,7 +174,13 @@ public class PaimonSinkConfig extends AbstractConfig {
                 ConfigDef.Type.STRING,
                 TABLE_CASE_SENSITIVE_DEFAULT,
                 ConfigDef.Importance.MEDIUM,
-                TABLE_CASE_SENSITIVE_DOC);
+                TABLE_CASE_SENSITIVE_DOC)
+        .define(
+                COMMIT_INTERVAL_MS_PROP,
+                ConfigDef.Type.INT,
+                COMMIT_INTERVAL_MS_DEFAULT,
+                ConfigDef.Importance.MEDIUM,
+                "Coordinator interval for performing Iceberg table commits, in millis");;
         // Config options
         return configDef;
     }
@@ -212,6 +223,10 @@ public class PaimonSinkConfig extends AbstractConfig {
 
     public boolean isCaseSensitive() {
         return caseSensitive;
+    }
+
+    public int getCommitIntervalMs() {
+        return commitIntervalMs;
     }
 
     @VisibleForTesting
